@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121A2C">
+<meta name="color-scheme" content="dark">
+<title>Carnet Crypto</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#121A2C;--panel:#1A2440;--panel2:#222E50;--line:#2C395E;
+  --text:#E9EDF6;--muted:#8B96B3;--amber:#F2B84B;--gain:#3FD49B;--loss:#FF7A7A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#app{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 18px}
+.top h1{font-size:20px;font-weight:800;margin:0;letter-spacing:-.01em}
+.back{background:none;border:0;color:var(--muted);padding:6px 0;font-weight:600}
+.iconbtn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:600;font-size:14px}
+.iconbtn.spin{opacity:.6;pointer-events:none}
+.hero{padding:6px 0 20px}
+.hero .cap{color:var(--muted);font-size:13px}
+.big{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:4px 0 6px}
+.pnlline{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px}
+.gain{color:var(--gain)}.loss{color:var(--loss)}.mut{color:var(--muted)}
+.alloc{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel);margin:18px 0 8px;gap:2px}
+.alloc span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+h2{font-size:15px;font-weight:700;margin:26px 0 8px;color:var(--muted)}
+.list{background:var(--panel);border-radius:14px;overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:13px 14px;border:0;border-bottom:1px solid var(--line);width:100%;background:none;text-align:left}
+.item:last-child{border-bottom:0}
+button.item:active{background:var(--panel2)}
+.item .l{flex:1;min-width:0}
+.item .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .r{text-align:right;flex-shrink:0}
+.empty{padding:26px 18px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--text);margin-bottom:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:14px;overflow:hidden}
+.grid div{background:var(--panel);padding:12px 14px}
+.grid .k{font-size:12px;color:var(--muted)}
+.grid .v{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+.actions{display:flex;gap:10px;margin:16px 0 0;flex-wrap:wrap}
+.btn{flex:1;min-width:120px;border:0;border-radius:12px;padding:13px 14px;font-weight:700;background:var(--panel2);color:var(--text)}
+.btn.primary{background:var(--amber);color:#1b1407}
+.btn.buy{background:var(--gain);color:#062418}
+.btn.sell{background:var(--loss);color:#2b0808}
+.btn.ghost{background:none;border:1px solid var(--line)}
+.btn.danger{background:none;border:1px solid var(--loss);color:var(--loss)}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px}
+.tag.buy{background:rgba(63,212,155,.15);color:var(--gain)}
+.tag.sell{background:rgba(255,122,122,.15);color:var(--loss)}
+.addr{font-size:12px;color:var(--muted);word-break:break-all}
+a{color:var(--amber)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:rgba(18,26,44,.96);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav.tabs button{flex:1;max-width:213px;background:none;border:0;padding:12px 4px 13px;color:var(--muted);font-weight:700;font-size:13px}
+nav.tabs button.on{color:var(--amber)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(5,9,18,.6);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--panel);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;
+  padding:18px 18px calc(22px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet h3{margin:0 0 14px;font-size:18px}
+label.f{display:block;margin-bottom:12px;font-size:13px;color:var(--muted);font-weight:600}
+label.f input,label.f select,label.f textarea{display:block;width:100%;margin-top:5px;background:var(--ink);border:1px solid var(--line);
+  border-radius:10px;padding:11px 12px;font-size:16px;font-weight:500}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;background:var(--ink);border-radius:10px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-weight:700;color:var(--muted)}
+.seg button.on.buy{background:var(--gain);color:#062418}
+.seg button.on.sell{background:var(--loss);color:#2b0808}
+.hint{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+.warn{font-size:13px;color:var(--amber);margin:-4px 0 12px}
+.results .item{cursor:pointer}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--ink);
+  padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;z-index:20;max-width:90vw;text-align:center}
+.small{font-size:13px}
+.item .gain{color:var(--gain)}.item .loss{color:var(--loss)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav class="tabs" id="tabs">
+  <button data-v="home">Portefeuilles</button>
+  <button data-v="journal">Journal</button>
+  <button data-v="settings">Réglages</button>
+</nav>
+<script>
+"use strict";
+const CHAINS={
+  solana:{n:'Solana',c:'#9945FF',ds:'solana'},
+  bsc:{n:'BNB Chain',c:'#F0B90B',ds:'bsc'},
+  ethereum:{n:'Ethereum',c:'#7B93F0',ds:'ethereum'},
+  base:{n:'Base',c:'#3B7BFF',ds:'base'},
+  arbitrum:{n:'Arbitrum',c:'#28A0F0',ds:'arbitrum'},
+  polygon:{n:'Polygon',c:'#A07BEA',ds:'polygon'},
+  other:{n:'Autre',c:'#8B96B3',ds:null}
+};
+const KEY='carnet-crypto-v1';
+let S=load();
+let view={name:'home'};
+
+function load(){
+  try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.portfolios)return d}catch(e){}
+  return {portfolios:[],assets:[],trades:[],settings:{base:'USD',usdEur:0.92,rateTs:0}};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Enregistrement impossible : stockage plein ou bloqué")}}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+const num=v=>{if(v==null)return NaN;const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return n};
+const fx=()=>S.settings.base==='EUR'?(S.settings.usdEur||0.92):1;
+const cur=()=>S.settings.base;
+
+function money(v,opt={}){
+  if(v==null||isNaN(v))return '—';
+  const a=Math.abs(v);let o={style:'currency',currency:cur(),currencyDisplay:'narrowSymbol'};
+  if(a>0&&a<1)o.maximumSignificantDigits=4;else o.maximumFractionDigits=2;
+  let s=new Intl.NumberFormat('fr-FR',o).format(v);
+  if(opt.sign&&v>0)s='+'+s;
+  return s;
+}
+function qtyf(v){
+  if(v==null||isNaN(v))return '—';
+  const a=Math.abs(v);
+  const o=a>=1000?{maximumFractionDigits:0}:a>=1?{maximumFractionDigits:4}:{maximumSignificantDigits:5};
+  return new Intl.NumberFormat('fr-FR',o).format(v);
+}
+const pct=v=>v==null||isNaN(v)?'—':(v>0?'+':'')+v.toFixed(2).replace('.',',')+' %';
+const cls=v=>v>0?'gain':v<0?'loss':'mut';
+const short=a=>a&&a.length>14?a.slice(0,6)+'…'+a.slice(-5):(a||'');
+const dateF=d=>new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+/* ---------- calculs (méthode du coût moyen pondéré) ---------- */
+function curPrice(a){
+  if(a.manualPrice!=null)return a.manualPrice;
+  if(a.priceUsd!=null)return a.priceUsd*fx();
+  return null;
+}
+function calc(a){
+  const ts=S.trades.filter(t=>t.assetId===a.id).sort((x,y)=>x.date.localeCompare(y.date)||x.created-y.created);
+  let qty=0,cost=0,realized=0,bought=0,sold=0,qBought=0;
+  for(const t of ts){
+    const fee=t.fee||0;
+    if(t.type==='buy'){cost+=t.qty*t.price+fee;qty+=t.qty;bought+=t.qty*t.price+fee;qBought+=t.qty}
+    else{
+      const avg=qty>0?cost/qty:0,q=Math.min(t.qty,qty),out=avg*q;
+      realized+=t.qty*t.price-fee-out;cost-=out;qty-=q;sold+=t.qty*t.price-fee;
+    }
+  }
+  if(qty<1e-12){qty=0;cost=0}
+  const price=curPrice(a),value=price!=null?qty*price:null,unreal=value!=null?value-cost:null;
+  return {qty,cost,avg:qty>0?cost/qty:0,avgBuy:qBought>0?bought/qBought:0,realized,bought,sold,price,value,unreal,
+    unrealPct:cost>0&&unreal!=null?unreal/cost*100:null,n:ts.length};
+}
+function totals(assets){
+  let value=0,cost=0,unreal=0,realized=0,priced=true;
+  for(const a of assets){const c=calc(a);cost+=c.cost;realized+=c.realized;
+    if(c.value!=null){value+=c.value;unreal+=c.unreal}else if(c.qty>0)priced=false}
+  return {value,cost,unreal,realized,priced,unrealPct:cost>0?unreal/cost*100:null};
+}
+const assetsOf=pid=>S.assets.filter(a=>a.portfolioId===pid);
+
+/* ---------- prix (DexScreener) ---------- */
+async function refreshPrices(silent){
+  const btn=$('#refresh');if(btn)btn.classList.add('spin');
+  let ok=0,fail=0;
+  try{
+    if(S.settings.base==='EUR')await refreshRate(true);
+    const by={};
+    for(const a of S.assets){const ds=CHAINS[a.chain]?.ds;if(ds&&a.address)(by[ds]??=new Set()).add(a.address)}
+    for(const [ds,set] of Object.entries(by)){
+      const list=[...set];
+      for(let i=0;i<list.length;i+=30){
+        const chunk=list.slice(i,i+30);
+        try{
+          const r=await fetch(`https://api.dexscreener.com/tokens/v1/${ds}/${chunk.join(',')}`);
+          if(!r.ok)throw 0;
+          const pairs=await r.json();
+          for(const a of S.assets.filter(a=>CHAINS[a.chain]?.ds===ds&&chunk.includes(a.address))){
+            const best=(pairs||[]).filter(p=>p.baseToken?.address?.toLowerCase()===a.address.toLowerCase())
+              .sort((x,y)=>(y.liquidity?.usd||0)-(x.liquidity?.usd||0))[0];
+            if(best&&best.priceUsd){a.priceUsd=+best.priceUsd;a.change24h=best.priceChange?.h24??null;a.pairUrl=best.url;a.priceTs=Date.now();ok++}
+            else fail++;
+          }
+        }catch(e){fail+=chunk.length}
+      }
+    }
+    save();
+    if(!silent)toast(fail?`${ok} prix mis à jour, ${fail} introuvable(s)`:`${ok} prix mis à jour`);
+  }catch(e){if(!silent)toast("Pas de connexion : prix non mis à jour")}
+  if(btn)btn.classList.remove('spin');
+  render();
+}
+async function refreshRate(silent){
+  const urls=['https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR','https://api.frankfurter.app/latest?from=USD&to=EUR'];
+  for(const u of urls){
+    try{const r=await fetch(u);const d=await r.json();if(d?.rates?.EUR){S.settings.usdEur=d.rates.EUR;S.settings.rateTs=Date.now();save();
+      if(!silent)toast('Taux mis à jour : 1 $ = '+d.rates.EUR.toFixed(4).replace('.',',')+' €');return true}}catch(e){}
+  }
+  if(!silent)toast("Taux indisponible, saisissez-le à la main");
+  return false;
+}
+async function searchTokens(q,chain){
+  const ds=CHAINS[chain]?.ds;
+  const isAddr=q.length>=30&&!/\s/.test(q);
+  const url=isAddr?`https://api.dexscreener.com/latest/dex/tokens/${q}`:`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`;
+  const r=await fetch(url);if(!r.ok)throw new Error('http');
+  const d=await r.json();
+  const m=new Map();
+  for(const p of d.pairs||[]){
+    if(ds&&p.chainId!==ds)continue;
+    let tok=p.baseToken,price=+p.priceUsd;
+    if(isAddr&&p.quoteToken?.address?.toLowerCase()===q.toLowerCase()&&p.baseToken?.address?.toLowerCase()!==q.toLowerCase())continue;
+    const k=p.chainId+':'+tok.address.toLowerCase(),liq=p.liquidity?.usd||0;
+    if(!m.has(k)||m.get(k).liq<liq)m.set(k,{chain:p.chainId,address:tok.address,symbol:tok.symbol,name:tok.name,price,liq,url:p.url,ch:p.priceChange?.h24});
+  }
+  return [...m.values()].sort((a,b)=>b.liq-a.liq).slice(0,8);
+}
+
+/* ---------- vues ---------- */
+function render(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',
+    b.dataset.v===view.name||(b.dataset.v==='home'&&(view.name==='portfolio'||view.name==='asset'))));
+  const v={home:vHome,portfolio:vPortfolio,asset:vAsset,journal:vJournal,settings:vSettings}[view.name]||vHome;
+  $('#app').innerHTML=v();
+  window.scrollTo(0,0);
+}
+function go(name,id){view={name,id};render()}
+
+function heroBlock(t,label){
+  return `<section class="hero"><div class="cap">${label}</div>
+  <div class="big">${money(t.value)}</div>
+  <div class="pnlline"><span class="${cls(t.unreal)}">${money(t.unreal,{sign:1})} (${pct(t.unrealPct)}) latent</span>
+  <span class="${cls(t.realized)}">${money(t.realized,{sign:1})} réalisé</span></div>
+  ${t.priced?'':'<div class="warn" style="margin:8px 0 0">Certains tokens n\'ont pas de prix : actualisez ou saisissez un prix manuel.</div>'}
+  </section>`;
+}
+function vHome(){
+  const t=totals(S.assets);
+  const byChain={};
+  for(const a of S.assets){const c=calc(a);if(c.value>0)byChain[a.chain]=(byChain[a.chain]||0)+c.value}
+  const sum=Object.values(byChain).reduce((x,y)=>x+y,0);
+  const ents=Object.entries(byChain).sort((a,b)=>b[1]-a[1]);
+  const alloc=sum>0?`<div class="alloc" role="img" aria-label="Répartition par blockchain">${ents.map(([k,v])=>`<span style="flex:${v};background:${CHAINS[k].c}"></span>`).join('')}</div>
+    <div class="legend">${ents.map(([k,v])=>`<span><i class="dot" style="background:${CHAINS[k].c}"></i>${CHAINS[k].n} ${(v/sum*100).toFixed(0)} %</span>`).join('')}</div>`:'';
+  const rows=S.portfolios.map(p=>{const pt=totals(assetsOf(p.id));const ch=CHAINS[p.chain]||CHAINS.other;
+    return `<button class="item" onclick="go('portfolio','${p.id}')"><i class="dot" style="background:${ch.c}"></i>
+    <div class="l"><div class="t">${esc(p.name)}</div><div class="s">${ch.n}${p.address?' – '+esc(short(p.address)):''}</div></div>
+    <div class="r"><div class="t">${money(pt.value)}</div><div class="s ${cls(pt.unreal)}">${pct(pt.unrealPct)}</div></div></button>`}).join('');
+  return `<div class="top"><h1>Carnet Crypto</h1>${S.assets.length?'<button class="iconbtn" id="refresh" onclick="refreshPrices()">Actualiser</button>':''}</div>
+  ${heroBlock(t,'Valeur totale')}${alloc}
+  <h2>Portefeuilles</h2>
+  <div class="list">${rows||`<div class="empty"><b>Aucun portefeuille</b>Créez-en un par wallet (Phantom, Trust Wallet…) pour y noter vos achats et ventes.</div>`}</div>
+  <div class="actions"><button class="btn primary" onclick="formPortfolio()">Nouveau portefeuille</button></div>`;
+}
+function vPortfolio(){
+  const p=S.portfolios.find(x=>x.id===view.id);if(!p){view={name:'home'};return vHome()}
+  const as=assetsOf(p.id),t=totals(as),ch=CHAINS[p.chain]||CHAINS.other;
+  const rows=as.map(a=>({a,c:calc(a)})).sort((x,y)=>(y.c.value||0)-(x.c.value||0)).map(({a,c})=>
+    `<button class="item" onclick="go('asset','${a.id}')"><i class="dot" style="background:${(CHAINS[a.chain]||CHAINS.other).c}"></i>
+    <div class="l"><div class="t">${esc(a.symbol)}</div><div class="s">${qtyf(c.qty)} – PRU ${money(c.avg)}</div></div>
+    <div class="r"><div class="t">${money(c.value)}</div><div class="s ${cls(c.unreal)}">${c.qty>0?pct(c.unrealPct):'soldé'}</div></div></button>`).join('');
+  return `<div class="top"><button class="back" onclick="go('home')">‹ Portefeuilles</button>${as.length?'<button class="iconbtn" id="refresh" onclick="refreshPrices()">Actualiser</button>':''}</div>
+  <h1 style="margin:0;font-size:24px">${esc(p.name)}</h1>
+  <div class="small mut"><i class="dot" style="background:${ch.c}"></i>${ch.n}</div>
+  ${p.address?`<div class="addr" style="margin-top:4px">${esc(p.address)} <a href="#" onclick="copy('${esc(p.address)}');return false">copier</a></div>`:''}
+  ${heroBlock(t,'Valeur du portefeuille')}
+  <h2>Tokens</h2>
+  <div class="list">${rows||`<div class="empty"><b>Aucun token</b>Ajoutez un token par son nom ou son adresse de contrat, puis notez vos achats.</div>`}</div>
+  <div class="actions"><button class="btn primary" onclick="formAsset('${p.id}')">Ajouter un token</button>
+  <button class="btn ghost" onclick="formPortfolio('${p.id}')">Modifier</button></div>`;
+}
+function vAsset(){
+  const a=S.assets.find(x=>x.id===view.id);if(!a){view={name:'home'};return vHome()}
+  const c=calc(a),ch=CHAINS[a.chain]||CHAINS.other;
+  const ts=S.trades.filter(t=>t.assetId===a.id).sort((x,y)=>y.date.localeCompare(x.date));
+  const src=a.manualPrice!=null?'Prix manuel':a.priceTs?`DexScreener, ${dateF(a.priceTs)}`:'Aucun prix';
+  return `<div class="top"><button class="back" onclick="go('portfolio','${a.portfolioId}')">‹ Portefeuille</button>
+  <button class="iconbtn" id="refresh" onclick="refreshPrices()">Actualiser</button></div>
+  <h1 style="margin:0;font-size:26px">${esc(a.symbol)} <span class="mut" style="font-size:15px;font-weight:600">${esc(a.name||'')}</span></h1>
+  <div class="small mut"><i class="dot" style="background:${ch.c}"></i>${ch.n}</div>
+  <section class="hero" style="padding-bottom:14px">
+    <div class="big" style="font-size:32px">${money(c.price)}</div>
+    <div class="pnlline"><span class="${cls(a.change24h)}">${a.manualPrice==null&&a.change24h!=null?pct(a.change24h)+' sur 24 h':''}</span><span class="mut">${src}</span></div>
+  </section>
+  <div class="grid">
+    <div><div class="k">Quantité détenue</div><div class="v">${qtyf(c.qty)}</div></div>
+    <div><div class="k">Prix de revient unitaire</div><div class="v">${money(c.avg)}</div></div>
+    <div><div class="k">Valeur actuelle</div><div class="v">${money(c.value)}</div></div>
+    <div><div class="k">Coût restant investi</div><div class="v">${money(c.cost)}</div></div>
+    <div><div class="k">Plus-value latente</div><div class="v ${cls(c.unreal)}">${money(c.unreal,{sign:1})}<br><span class="small">${pct(c.unrealPct)}</span></div></div>
+    <div><div class="k">Plus-value réalisée</div><div class="v ${cls(c.realized)}">${money(c.realized,{sign:1})}</div></div>
+    <div><div class="k">Total acheté</div><div class="v">${money(c.bought)}</div></div>
+    <div><div class="k">Total vendu</div><div class="v">${money(c.sold)}</div></div>
+  </div>
+  <div class="actions"><button class="btn buy" onclick="formTrade('${a.id}','buy')">Acheter</button>
+  <button class="btn sell" onclick="formTrade('${a.id}','sell')">Vendre</button></div>
+  <h2>Transactions</h2>
+  <div class="list">${ts.map(t=>tradeRow(t)).join('')||`<div class="empty"><b>Aucune transaction</b>Notez votre premier achat pour calculer votre prix de revient.</div>`}</div>
+  <h2>Token</h2>
+  <div class="list">
+    ${a.address?`<div class="item"><div class="l"><div class="s">Adresse du contrat</div><div class="addr">${esc(a.address)}</div></div><button class="iconbtn" onclick="copy('${esc(a.address)}')">Copier</button></div>`:''}
+    ${a.pairUrl?`<a class="item" href="${esc(a.pairUrl)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none"><div class="l">Voir le graphique sur DexScreener</div></a>`:''}
+    <button class="item" onclick="formManualPrice('${a.id}')"><div class="l">${a.manualPrice!=null?'Modifier ou retirer le prix manuel':'Définir un prix manuel'}</div></button>
+    <button class="item" onclick="delAsset('${a.id}')"><div class="l loss">Supprimer ce token et ses transactions</div></button>
+  </div>`;
+}
+function tradeRow(t,withAsset){
+  const a=S.assets.find(x=>x.id===t.assetId);const total=t.qty*t.price;
+  return `<button class="item" onclick="formTrade('${t.assetId}','${t.type}','${t.id}')">
+  <span class="tag ${t.type}">${t.type==='buy'?'Achat':'Vente'}</span>
+  <div class="l"><div class="t">${withAsset&&a?esc(a.symbol)+' – ':''}${qtyf(t.qty)} à ${money(t.price)}</div>
+  <div class="s">${dateF(t.date)}${t.fee?' – frais '+money(t.fee):''}${t.note?' – '+esc(t.note):''}</div></div>
+  <div class="r"><div class="t">${money(total)}</div></div></button>`;
+}
+function vJournal(){
+  const ts=[...S.trades].sort((x,y)=>y.date.localeCompare(x.date));
+  let b=0,s=0;for(const t of ts){if(t.type==='buy')b+=t.qty*t.price+(t.fee||0);else s+=t.qty*t.price-(t.fee||0)}
+  return `<div class="top"><h1>Journal</h1></div>
+  <div class="grid" style="margin-bottom:6px"><div><div class="k">Total acheté</div><div class="v">${money(b)}</div></div>
+  <div><div class="k">Total vendu</div><div class="v">${money(s)}</div></div></div>
+  <h2>${ts.length} transaction${ts.length>1?'s':''}</h2>
+  <div class="list">${ts.map(t=>tradeRow(t,true)).join('')||'<div class="empty"><b>Journal vide</b>Les achats et ventes de tous vos portefeuilles apparaîtront ici.</div>'}</div>`;
+}
+function vSettings(){
+  const st=S.settings;
+  return `<div class="top"><h1>Réglages</h1></div>
+  <h2>Devise de référence</h2>
+  <div class="list" style="padding:14px">
+    <label class="f">Devise des montants saisis et affichés
+      <select onchange="setBase(this.value)"><option value="USD" ${st.base==='USD'?'selected':''}>Dollar (USD)</option><option value="EUR" ${st.base==='EUR'?'selected':''}>Euro (EUR)</option></select></label>
+    <div class="hint">Changer de devise ne convertit pas les transactions déjà saisies. Choisissez-la avant de commencer.</div>
+    ${st.base==='EUR'?`<label class="f">Taux USD → EUR
+      <input inputmode="decimal" value="${String(st.usdEur).replace('.',',')}" onchange="setRate(this.value)"></label>
+      <div class="hint">${st.rateTs?'Mis à jour le '+dateF(st.rateTs):'Taux par défaut'}. Les prix DexScreener (en dollars) sont convertis avec ce taux.</div>
+      <button class="btn ghost" style="width:100%" onclick="refreshRate().then(render)">Récupérer le taux du jour</button>`:''}
+  </div>
+  <h2>Sauvegarde</h2>
+  <div class="list">
+    <button class="item" onclick="exportData()"><div class="l"><div class="t">Exporter les données</div><div class="s">Fichier JSON à garder en lieu sûr</div></div></button>
+    <label class="item" style="cursor:pointer"><div class="l"><div class="t">Importer une sauvegarde</div><div class="s">Remplace les données actuelles</div></div>
+      <input type="file" accept="application/json,.json" style="display:none" onchange="importData(this.files[0])"></label>
+    <button class="item" onclick="resetAll()"><div class="l"><div class="t loss">Tout effacer</div><div class="s">Supprime portefeuilles et transactions de cet appareil</div></div></button>
+  </div>
+  <h2>À propos</h2>
+  <div class="list" style="padding:14px" ><div class="small mut">Vos données restent sur cet appareil. Seuls les prix (DexScreener) et le taux de change (Frankfurter) sont récupérés en ligne. Le prix de revient est calculé selon la méthode du coût moyen pondéré, frais d'achat inclus.</div></div>`;
+}
+
+/* ---------- feuilles / formulaires ---------- */
+function sheet(title,body){
+  closeSheet();
+  const d=document.createElement('div');d.className='scrim';d.id='scrim';
+  d.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h3>${esc(title)}</h3>${body}</div>`;
+  d.addEventListener('click',e=>{if(e.target===d)closeSheet()});
+  document.body.appendChild(d);
+  const f=d.querySelector('input:not([type=hidden]),select');if(f&&!f.dataset.nofocus)setTimeout(()=>f.focus(),60);
+}
+function closeSheet(){$('#scrim')?.remove()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+const chainOpts=sel=>Object.entries(CHAINS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v.n}</option>`).join('');
+
+function formPortfolio(id){
+  const p=id?S.portfolios.find(x=>x.id===id):null;
+  sheet(p?'Modifier le portefeuille':'Nouveau portefeuille',`
+  <label class="f">Nom<input id="pn" value="${esc(p?.name||'')}" placeholder="Phantom principal"></label>
+  <label class="f">Blockchain<select id="pc">${chainOpts(p?.chain||'solana')}</select></label>
+  <label class="f">Adresse du wallet (facultatif)<input id="pa" value="${esc(p?.address||'')}" placeholder="Pour mémoire, rien n'est lu dessus" autocapitalize="off" spellcheck="false"></label>
+  <div class="actions"><button class="btn primary" onclick="savePortfolio('${id||''}')">${p?'Enregistrer':'Créer le portefeuille'}</button></div>
+  ${p?`<div class="actions"><button class="btn danger" onclick="delPortfolio('${p.id}')">Supprimer le portefeuille</button></div>`:''}`);
+}
+function savePortfolio(id){
+  const name=$('#pn').value.trim();if(!name)return toast('Donnez un nom au portefeuille');
+  const d={name,chain:$('#pc').value,address:$('#pa').value.trim()};
+  if(id)Object.assign(S.portfolios.find(x=>x.id===id),d);
+  else{id=uid();S.portfolios.push({id,...d})}
+  save();closeSheet();go('portfolio',id);
+}
+function delPortfolio(id){
+  const n=assetsOf(id).length;
+  if(!confirm(`Supprimer ce portefeuille${n?` et ses ${n} token(s) avec leurs transactions`:''} ?`))return;
+  const ids=assetsOf(id).map(a=>a.id);
+  S.trades=S.trades.filter(t=>!ids.includes(t.assetId));S.assets=S.assets.filter(a=>a.portfolioId!==id);
+  S.portfolios=S.portfolios.filter(p=>p.id!==id);save();closeSheet();go('home');
+}
+function formAsset(pid){
+  const p=S.portfolios.find(x=>x.id===pid);
+  sheet('Ajouter un token',`
+  <label class="f">Blockchain<select id="ac">${chainOpts(p?.chain||'solana')}</select></label>
+  <label class="f">Nom, symbole ou adresse du contrat<input id="aq" placeholder="BONK ou adresse du token" autocapitalize="off" spellcheck="false"
+    onkeydown="if(event.key==='Enter')doSearch('${pid}')"></label>
+  <div class="actions" style="margin:0 0 14px"><button class="btn primary" onclick="doSearch('${pid}')">Rechercher</button></div>
+  <div id="ares" class="list results"></div>
+  <div class="hint" style="margin-top:14px">Token introuvable ou hors liste ? <a href="#" onclick="formManualAsset('${pid}');return false">Ajouter à la main</a></div>`);
+}
+async function doSearch(pid){
+  const q=$('#aq').value.trim(),chain=$('#ac').value,box=$('#ares');
+  if(!q)return;
+  if(!CHAINS[chain].ds)return formManualAsset(pid);
+  box.innerHTML='<div class="empty">Recherche…</div>';
+  try{
+    const r=await searchTokens(q,chain);
+    window._res=r;
+    box.innerHTML=r.length?r.map((t,i)=>`<button class="item" onclick="pickToken('${pid}',${i})">
+      <div class="l"><div class="t">${esc(t.symbol)} <span class="mut" style="font-weight:500">${esc(t.name)}</span></div>
+      <div class="s">${esc(short(t.address))} – liquidité ${new Intl.NumberFormat('fr-FR',{style:'currency',currency:'USD',currencyDisplay:'narrowSymbol',notation:'compact'}).format(t.liq)}</div></div>
+      <div class="r"><div class="t">${new Intl.NumberFormat('fr-FR',{style:'currency',currency:'USD',currencyDisplay:'narrowSymbol',maximumSignificantDigits:4}).format(t.price)}</div></div></button>`).join('')
+      :`<div class="empty"><b>Aucun résultat sur ${CHAINS[chain].n}</b>Vérifiez la blockchain choisie ou collez l'adresse du contrat.</div>`;
+  }catch(e){box.innerHTML='<div class="empty"><b>Recherche impossible</b>Vérifiez votre connexion, ou ajoutez le token à la main.</div>'}
+}
+function pickToken(pid,i){
+  const t=window._res[i];
+  const chain=Object.keys(CHAINS).find(k=>CHAINS[k].ds===t.chain)||'other';
+  const dup=S.assets.find(a=>a.portfolioId===pid&&a.chain===chain&&a.address?.toLowerCase()===t.address.toLowerCase());
+  if(dup){closeSheet();return go('asset',dup.id)}
+  const a={id:uid(),portfolioId:pid,chain,address:t.address,symbol:t.symbol,name:t.name,priceUsd:t.price,change24h:t.ch??null,pairUrl:t.url,priceTs:Date.now(),manualPrice:null};
+  S.assets.push(a);save();closeSheet();go('asset',a.id);
+}
+function formManualAsset(pid){
+  const p=S.portfolios.find(x=>x.id===pid);
+  sheet('Ajouter un token à la main',`
+  <div class="row2"><label class="f">Symbole<input id="ms" placeholder="XYZ" autocapitalize="characters"></label>
+  <label class="f">Blockchain<select id="mc">${chainOpts(p?.chain||'other')}</select></label></div>
+  <label class="f">Nom (facultatif)<input id="mn"></label>
+  <label class="f">Prix actuel en ${cur()} (facultatif)<input id="mp" inputmode="decimal"></label>
+  <div class="actions"><button class="btn primary" onclick="saveManualAsset('${pid}')">Ajouter</button></div>`);
+}
+function saveManualAsset(pid){
+  const sym=$('#ms').value.trim();if(!sym)return toast('Indiquez un symbole');
+  const mp=num($('#mp').value);
+  const a={id:uid(),portfolioId:pid,chain:$('#mc').value,address:'',symbol:sym.toUpperCase(),name:$('#mn').value.trim(),manualPrice:isNaN(mp)?null:mp};
+  S.assets.push(a);save();closeSheet();go('asset',a.id);
+}
+function formManualPrice(id){
+  const a=S.assets.find(x=>x.id===id);
+  sheet('Prix manuel',`
+  <label class="f">Prix unitaire en ${cur()}<input id="mp" inputmode="decimal" value="${a.manualPrice!=null?String(a.manualPrice).replace('.',','):''}"></label>
+  <div class="hint">Le prix manuel remplace celui de DexScreener. Laissez vide pour revenir au prix automatique.</div>
+  <div class="actions"><button class="btn primary" onclick="saveManualPrice('${id}')">Enregistrer</button></div>`);
+}
+function saveManualPrice(id){
+  const a=S.assets.find(x=>x.id===id),v=num($('#mp').value);
+  a.manualPrice=isNaN(v)?null:v;save();closeSheet();render();
+}
+function delAsset(id){
+  const a=S.assets.find(x=>x.id===id);
+  if(!confirm(`Supprimer ${a.symbol} et toutes ses transactions ?`))return;
+  S.trades=S.trades.filter(t=>t.assetId!==id);S.assets=S.assets.filter(x=>x.id!==id);save();go('portfolio',a.portfolioId);
+}
+function nowLocal(d){const x=d?new Date(d):new Date();return new Date(x-x.getTimezoneOffset()*6e4).toISOString().slice(0,16)}
+function formTrade(aid,type,tid){
+  const a=S.assets.find(x=>x.id===aid),t=tid?S.trades.find(x=>x.id===tid):null;
+  const c=calc(a);type=t?.type||type;
+  const pDef=t?t.price:(c.price??'');
+  const fmt=v=>v===''||v==null?'':String(+(+v).toPrecision(10)).replace('.',',');
+  sheet(t?'Modifier la transaction':`${type==='buy'?'Achat':'Vente'} de ${a.symbol}`,`
+  <div class="seg"><button id="tb" class="buy ${type==='buy'?'on':''}" onclick="setType('buy')">Achat</button>
+  <button id="tsl" class="sell ${type==='sell'?'on':''}" onclick="setType('sell')">Vente</button></div>
+  <input type="hidden" id="ttype" value="${type}">
+  <label class="f">Date et heure<input type="datetime-local" id="td" value="${nowLocal(t?.date)}" data-nofocus="1"></label>
+  <label class="f">Quantité de ${esc(a.symbol)}<input id="tq" inputmode="decimal" value="${fmt(t?.qty)}" oninput="syncTotal()"></label>
+  <div id="tqw" class="warn" style="display:none"></div>
+  <div class="row2">
+    <label class="f">Prix unitaire (${cur()})<input id="tp" inputmode="decimal" value="${fmt(pDef)}" oninput="syncTotal()"></label>
+    <label class="f">Montant total (${cur()})<input id="tt" inputmode="decimal" oninput="syncPrice()"></label>
+  </div>
+  <div class="hint">Remplissez le prix unitaire ou le montant total, l'autre se calcule.</div>
+  <label class="f">Frais (${cur()})<input id="tf" inputmode="decimal" value="${fmt(t?.fee||'')}" placeholder="0"></label>
+  <label class="f">Note (facultatif)<input id="tn" value="${esc(t?.note||'')}" placeholder="Jupiter, PancakeSwap…"></label>
+  <div class="actions"><button class="btn primary" onclick="saveTrade('${aid}','${tid||''}')">${t?'Enregistrer':'Ajouter la transaction'}</button></div>
+  ${t?`<div class="actions"><button class="btn danger" onclick="delTrade('${tid}')">Supprimer la transaction</button></div>`:''}`);
+  window._held=c.qty+(t&&t.type==='sell'?t.qty:0)-(t&&t.type==='buy'?t.qty:0);
+  syncTotal();
+  setTimeout(()=>$('#tq')?.focus(),80);
+}
+function setType(ty){$('#ttype').value=ty;$('#tb').classList.toggle('on',ty==='buy');$('#tsl').classList.toggle('on',ty==='sell');checkQty()}
+function syncTotal(){const q=num($('#tq').value),p=num($('#tp').value);if(!isNaN(q)&&!isNaN(p))$('#tt').value=String(+(q*p).toPrecision(10)).replace('.',',');checkQty()}
+function syncPrice(){const q=num($('#tq').value),t=num($('#tt').value);if(!isNaN(q)&&q>0&&!isNaN(t))$('#tp').value=String(+(t/q).toPrecision(10)).replace('.',',')}
+function checkQty(){
+  const w=$('#tqw');if(!w)return;const q=num($('#tq').value);
+  if($('#ttype').value==='sell'&&!isNaN(q)&&q>(window._held||0)+1e-12){w.style.display='block';w.textContent=`Vous ne détenez que ${qtyf(window._held||0)} à cette date. L'excédent sera compté sans coût.`}
+  else w.style.display='none';
+}
+function saveTrade(aid,tid){
+  const q=num($('#tq').value),p=num($('#tp').value),f=num($('#tf').value);
+  if(isNaN(q)||q<=0)return toast('Indiquez une quantité supérieure à 0');
+  if(isNaN(p)||p<0)return toast('Indiquez un prix unitaire ou un montant total');
+  const d={assetId:aid,type:$('#ttype').value,date:$('#td').value||nowLocal(),qty:q,price:p,fee:isNaN(f)?0:f,note:$('#tn').value.trim()};
+  if(tid)Object.assign(S.trades.find(x=>x.id===tid),d);else S.trades.push({id:uid(),created:Date.now(),...d});
+  save();closeSheet();render();toast(tid?'Transaction modifiée':'Transaction ajoutée');
+}
+function delTrade(id){if(!confirm('Supprimer cette transaction ?'))return;S.trades=S.trades.filter(t=>t.id!==id);save();closeSheet();render()}
+
+/* ---------- réglages ---------- */
+function setBase(v){
+  if(S.trades.length&&!confirm('Les montants déjà saisis ne seront pas convertis. Changer quand même ?'))return render();
+  S.settings.base=v;
+  save();render();if(v==='EUR'&&!S.settings.rateTs)refreshRate().then(render);
+}
+function setRate(v){const n=num(v);if(isNaN(n)||n<=0)return toast('Taux invalide');S.settings.usdEur=n;S.settings.rateTs=Date.now();save();render()}
+function exportData(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const name=`carnet-crypto-${new Date().toISOString().slice(0,10)}.json`;
+  const file=new File([blob],name,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(()=>{});return}
+  const u=URL.createObjectURL(blob),l=document.createElement('a');l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),2000);toast('Sauvegarde exportée');
+}
+function importData(file){
+  if(!file)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);
+    if(!Array.isArray(d.portfolios)||!Array.isArray(d.assets)||!Array.isArray(d.trades))throw 0;
+    if(!confirm(`Importer ${d.portfolios.length} portefeuille(s) et ${d.trades.length} transaction(s) ? Les données actuelles seront remplacées.`))return;
+    d.settings=Object.assign({base:'USD',usdEur:0.92,rateTs:0},d.settings||{});S=d;save();go('home');toast('Sauvegarde importée');
+  }catch(e){toast("Ce fichier n'est pas une sauvegarde Carnet Crypto")}};
+  r.readAsText(file);
+}
+function resetAll(){if(!confirm('Effacer toutes les données de cet appareil ? Pensez à exporter avant.'))return;localStorage.removeItem(KEY);S=load();go('home')}
+function copy(t){navigator.clipboard?.writeText(t).then(()=>toast('Adresse copiée'),()=>toast('Copie impossible'))}
+let tt;function toast(m){$('.toast')?.remove();clearTimeout(tt);const d=document.createElement('div');d.className='toast';d.textContent=m;d.setAttribute('role','status');document.body.appendChild(d);tt=setTimeout(()=>d.remove(),2600)}
+
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+window.addEventListener('popstate',()=>{if($('#scrim'))closeSheet()});
+render();
+if(S.assets.length&&navigator.onLine)refreshPrices(true);
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
