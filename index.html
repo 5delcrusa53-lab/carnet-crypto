@@ -156,7 +156,7 @@ function load(){
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Enregistrement impossible : stockage plein ou bloqué")}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const $=s=>document.querySelector(s);
 const num=v=>{if(v==null)return NaN;return parseFloat(String(v).replace(/\s/g,'').replace(',','.'))};
 const fx=()=>S.settings.base==='EUR'?(S.settings.usdEur||0.92):1;
@@ -229,17 +229,28 @@ function totals(assets){
 /* ---------- réseau ---------- */
 async function rpc(urls,method,params){
   let err;
-  for(const u of [].concat(urls)){
+  for(const u of [...new Set([].concat(urls).filter(Boolean))]){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),12000);
     try{
-      const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});
-      if(!r.ok)throw new Error('HTTP '+r.status);
+      const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}),signal:controller.signal});
+      if(!r.ok)throw new Error(`HTTP ${r.status} sur ${new URL(u).hostname}`);
       const d=await r.json();if(d.error)throw new Error(d.error.message||'RPC');
       return d.result;
-    }catch(e){err=e}
+    }catch(e){
+      err=e.name==='AbortError'?new Error(`Délai dépassé sur ${new URL(u).hostname}`):e;
+    }finally{
+      clearTimeout(timer);
+    }
   }
-  throw err||new Error('RPC');
+  throw err||new Error('Aucun RPC disponible');
 }
-const solRpcs=()=>[S.settings.solRpc,'https://solana-rpc.publicnode.com','https://api.mainnet-beta.solana.com'].filter(Boolean);
+const solRpcs=()=>[
+  S.settings.solRpc,
+  'https://solana-rpc.publicnode.com',
+  'https://api.mainnet-beta.solana.com',
+  'https://rpc.ankr.com/solana'
+].filter(Boolean);
 function hexAmount(h,dec){
   const b=BigInt(!h||h==='0x'?'0x0':h),s=10n**BigInt(dec);
   return Number(b/s)+Number(b%s)/Number(s);
@@ -248,15 +259,22 @@ async function holdSolana(addr){
   const urls=solRpcs(),m=new Map();
   const bal=await rpc(urls,'getBalance',[addr]);
   m.set(CHAINS.solana.native.wrapped,(bal.value||0)/1e9);
+
+  let complete=true;
   for(const prog of TOKEN_PROGS){
-    const r=await rpc(urls,'getTokenAccountsByOwner',[addr,{programId:prog},{encoding:'jsonParsed'}]);
-    for(const acc of r.value||[]){
-      const info=acc.account?.data?.parsed?.info;if(!info)continue;
-      const q=+info.tokenAmount.uiAmountString||0;
-      m.set(info.mint,(m.get(info.mint)||0)+q);
+    try{
+      const r=await rpc(urls,'getTokenAccountsByOwner',[addr,{programId:prog},{encoding:'jsonParsed'}]);
+      for(const acc of r.value||[]){
+        const info=acc.account?.data?.parsed?.info;if(!info)continue;
+        const q=+info.tokenAmount.uiAmountString||0;
+        m.set(info.mint,(m.get(info.mint)||0)+q);
+      }
+    }catch(e){
+      complete=false;
+      console.warn(`Lecture tokens Solana impossible pour ${prog}`, e);
     }
   }
-  return {list:[...m].map(([address,qty])=>({address,qty})),complete:true};
+  return {list:[...m].map(([address,qty])=>({address,qty})),complete};
 }
 async function holdEvm(p){
   const ch=CHAINS[p.chain],out=[];
@@ -321,8 +339,17 @@ function applyHoldings(p,{list,complete}){
 async function syncAll(){
   let err=0;
   for(const p of S.portfolios.filter(p=>p.sync&&p.address&&p.chain!=='other')){
-    try{p.syncErr=null;applyHoldings(p,p.chain==='solana'?await holdSolana(p.address):await holdEvm(p))}
-    catch(e){p.syncErr='Lecture du wallet impossible ('+(e.message||'réseau')+')';err++}
+    try{
+      p.syncErr=null;
+      const result=p.chain==='solana'?await holdSolana(p.address):await holdEvm(p);
+      applyHoldings(p,result);
+      if(!result.complete){
+        p.syncErr='Solde principal lu, certains tokens sont temporairement indisponibles';
+      }
+    }catch(e){
+      p.syncErr='Lecture du wallet impossible : '+(e?.message||'réseau indisponible');
+      err++;
+    }
   }
   return err;
 }
@@ -626,15 +653,15 @@ function vPortfolio(){
   <h1 style="margin:0;font-size:24px">${esc(p.name)}</h1>
   <div class="small mut"><i class="dot" style="background:${ch.c}"></i>${ch.n}${p.sync?(p.lastSync?' – solde lu '+ago(p.lastSync):' – première lecture…'):' – saisie manuelle'}</div>
   ${p.address?`<div class="addr" style="margin-top:4px">${esc(p.address)} <a href="#" onclick="copy('${esc(p.address)}');return false">copier</a></div>`:''}
-  ${histOn(p)?`<div class="small mut" style="margin-top:4px">Transactions importées automatiquement depuis le ${new Date(p.trackFrom).toLocaleDateString('fr-FR')}${p.hist?.queue?.length?` – ${p.hist.queue.length} en cours d'analyse`:''}</div>`:''}
+  ${histOn(p)?`<div class="small mut" style="margin-top:4px">Transactions importées automatiquement depuis le ${new Date(p.trackFrom).toLocaleDateString('fr-FR')}${p.hist?.queue?.length?` – ${p.hist.queue.length} en attente`:''}</div>`:''}
   ${p.syncErr?`<div class="warn" style="margin:8px 0 0">${esc(p.syncErr)}</div>`:''}
   ${p.histErr?`<div class="warn" style="margin:8px 0 0">${esc(p.histErr)}</div>`:''}
   ${heroBlock(t,'Valeur du portefeuille')}
   ${pendingBanner(p.id)}
   <h2>Tokens</h2>
-  <div class="list">${rows||`<div class="empty"><b>Aucun token</b>${p.sync?'Les tokens du wallet apparaîtront après la première lecture.':'Ajoute un token par son nom ou son adresse de contrat, puis note tes achats.'}</div>`}
-  ${nh?`<button class="item" onclick="view.showHidden=!view.showHidden;render()"><div class="l s">${view.showHidden?'Masquer':'Afficher'} ${nh} token${nh>1?'s':''} sans valeur (poussières, airdrops)</div></button>`:''}</div>
-  ${evmNoKey?`<div class="hint" style="margin-top:10px">Sur ${ch.n}, le solde ${ch.native.symbol} et les tokens que tu ajoutes sont lus en direct. Pour détecter tous les tokens et importer automatiquement tes achats, ventes et réceptions, ajoute une clé Moralis gratuite dans Réglages.</div>`:''}
+  <div class="list">${rows||`<div class="empty"><b>Aucun token</b>${p.sync?'Les tokens du wallet apparaîtront après la première lecture.':'Ajoute un token par son nom ou son adresse de contrat, puis note ses achats.'}</div>`}</div>
+  ${nh?`<button class="item" onclick="view.showHidden=!view.showHidden;render()"><div class="l s">${view.showHidden?'Masquer':'Afficher'} ${nh} token${nh>1?'s':''} sans valeur (poussières, airdrops)</div></button>`:''}
+  ${evmNoKey?`<div class="hint" style="margin-top:10px">Sur ${ch.n}, le solde ${ch.native.symbol} et les tokens que tu ajoutes sont lus en direct. Pour détecter tous les tokens et importer automatiquement les transactions, ajoute une clé Moralis dans Réglages.</div>':''}
   <div class="actions"><button class="btn primary" onclick="formAsset('${p.id}')">Ajouter un token</button>
   <button class="btn ghost" onclick="formPortfolio('${p.id}')">Modifier</button></div>`;
 }
@@ -705,7 +732,7 @@ function vSettings(){
   <h2>Temps réel</h2>
   <div class="list" style="padding:14px">
     <label class="f">Actualisation des soldes et des prix
-      <select onchange="S.settings.refreshSec=+this.value;save();lastCycle=0">${opt(15,'Toutes les 15 s')}${opt(30,'Toutes les 30 s')}${opt(60,'Toutes les minutes')}${opt(300,'Toutes les 5 min')}${opt(0,'Manuelle uniquement')}</select></label>
+      <select onchange="S.settings.refreshSec=+this.value;save();lastCycle=0">${opt(15,'Toutes les 15 s')}${opt(30,'Toutes les 30 s')}${opt(60,'Toutes les minutes')}${opt(300,'Toutes les 5 min')}${opt(900,'Toutes les 15 min')}</select></label>
     <div class="hint">L'actualisation se met en pause quand l'appli est en arrière-plan.</div>
     <label class="chk"><input type="checkbox" ${st.hideDust?'checked':''} onchange="S.settings.hideDust=this.checked;save()">
       <span>Masquer les tokens sans valeur<small>Poussières et airdrops de spam de moins de 1 ${cur()==='EUR'?'€':'$'}, sauf s'ils ont des transactions.</small></span></label>
@@ -717,7 +744,7 @@ function vSettings(){
     <div class="hint">Les RPC publics suffisent en général. Un RPC gratuit Helius évite les limites si tu suis beaucoup de wallets.</div>
     <label class="f">Clé API Moralis (facultatif)
       <input value="${esc(st.moralisKey)}" placeholder="Pour BNB Chain, Ethereum, Base…" autocapitalize="off" spellcheck="false" onchange="S.settings.moralisKey=this.value.trim();save()"></label>
-    <div class="hint">Sans clé, seuls le solde natif et les tokens ajoutés à la main sont suivis sur les chaînes EVM. Avec une clé, BNB Chain et les autres chaînes EVM ont aussi l'import automatique des transactions. Clé gratuite sur moralis.com.</div>
+    <div class="hint">Sans clé, seuls le solde natif et les tokens ajoutés à la main sont suivis sur les chaînes EVM. Avec une clé, BNB Chain et les autres chaînes EVM ont aussi l'import automatique des transactions.</div>
     <label class="chk"><input type="checkbox" ${st.recordBase?'checked':''} onchange="S.settings.recordBase=this.checked;save()">
       <span>Enregistrer aussi les mouvements de SOL, BNB et stablecoins<small>Désactivé : un achat de token payé en SOL n'est noté que côté token, le solde SOL reste suivi en direct.</small></span></label>
   </div>
@@ -738,7 +765,7 @@ function vSettings(){
     <button class="item" onclick="resetAll()"><div class="l"><div class="t loss">Tout effacer</div><div class="s">Supprime wallets et transactions de cet appareil</div></div></button>
   </div>
   <h2>À propos</h2>
-  <div class="list" style="padding:14px"><div class="small mut">Achats, ventes et réceptions sont importés depuis la blockchain à partir de la date choisie pour chaque wallet (Solana sans clé, chaînes EVM avec clé Moralis). Le prix d'un échange est calculé à partir du SOL, BNB ou stablecoin payé, au cours de la minute de la transaction. Seules des adresses publiques sont lues : l'appli ne demande jamais de phrase secrète ni de clé privée. Tes données restent sur cet appareil. Soldes lus sur la blockchain (RPC publics), prix DexScreener, taux Frankfurter. Prix de revient : coût moyen pondéré, frais d'achat inclus.</div></div>`;
+  <div class="list" style="padding:14px"><div class="small mut">Achats, ventes et réceptions sont importés depuis la blockchain à partir de la date choisie pour chaque wallet. Solana fonctionne sans clé, les EVM demandent une clé Moralis pour importer de façon complète les transactions.</div></div>`;
 }
 
 /* ---------- feuilles / formulaires ---------- */
@@ -865,7 +892,7 @@ function delAsset(id){
 function sheetPending(){
   const list=S.pending.map(pd=>({pd,a:S.assets.find(x=>x.id===pd.assetId)})).filter(x=>x.a).sort((x,y)=>y.pd.ts-x.pd.ts);
   if(!list.length)return closeSheet();
-  sheet('Mouvements détectés',`<div class="hint" style="margin:0 0 12px">Le solde de ces tokens a changé depuis la dernière lecture. Un échange (swap) apparaît en deux lignes : une vente d'un côté, un achat de l'autre.</div>
+  sheet('Mouvements détectés',`<div class="hint" style="margin:0 0 12px">Le solde de ces tokens a changé depuis la dernière lecture. Un échange (swap) apparaît en deux lignes : une vente d'un token et un achat d'un autre.</div>
   <div class="list">${list.map(({pd,a})=>`<div class="item">
     <div class="l"><div class="t ${pd.delta>0?'gain':'loss'}">${pd.delta>0?'+':'−'}${qtyf(Math.abs(pd.delta))} ${esc(sym(a))}</div>
     <div class="s">${esc(portOf(a)?.name||'')} – ${ago(pd.ts)}${pd.price!=null?' – '+money(Math.abs(pd.delta)*pd.price):''}</div></div>
@@ -890,7 +917,7 @@ function formTrade(aid,type,tid,pre={}){
   const ex=t?.sig&&EXPLORER[a.chain]?EXPLORER[a.chain]+t.sig:null;
   sheet(t?'Modifier la transaction':`${TL[type]} : ${sym(a)}`,`
   <div class="seg">${Object.entries(TL).map(([k,v])=>`<button data-t="${k}" class="${k} ${type===k?'on':''}" onclick="setType('${k}')">${v}</button>`).join('')}</div>
-  ${t?.auto?`<div class="hint">Importée automatiquement${ex?` – <a href="${ex}" target="_blank" rel="noopener">voir sur l'explorateur</a>`:''}.${t.noPrice?' Prix introuvable à cette date : saisis-le.':''}</div>`:''}
+  ${t?.auto?`<div class="hint">Importée automatiquement${ex?` – <a href="${ex}" target="_blank" rel="noopener">voir sur l'explorateur</a>`:''}.${t.noPrice?' Prix introuvable à cette date : saisis-en un manuellement.':''}</div>`:''}
   <input type="hidden" id="ttype" value="${type}">
   <label class="f">Date et heure<input type="datetime-local" id="td" value="${nowLocal(t?.date||pre.date)}"></label>
   <label class="f">Quantité de ${esc(sym(a))}<input id="tq" inputmode="decimal" value="${fmt(q)}" oninput="syncTotal()"></label>
@@ -913,7 +940,7 @@ function syncTotal(){const q=num($('#tq').value),p=num($('#tp').value);if(!isNaN
 function syncPrice(){const q=num($('#tq').value),t=num($('#tt').value);if(!isNaN(q)&&q>0&&!isNaN(t))$('#tp').value=String(+(t/q).toPrecision(10)).replace('.',',')}
 function checkQty(){
   const w=$('#tqw');if(!w)return;const q=num($('#tq').value);
-  if(['sell','out'].includes($('#ttype').value)&&!isNaN(q)&&q>(window._held||0)+1e-12){w.style.display='block';w.textContent=`Ton historique ne compte que ${qtyf(window._held||0)} achetés. L'excédent vendu sera compté sans coût : note d'abord l'achat correspondant.`}
+  if(['sell','out'].includes($('#ttype').value)&&!isNaN(q)&&q>(window._held||0)+1e-12){w.style.display='block';w.textContent=`Ton historique ne compte que ${qtyf(window._held||0)} achetés. L'excédent ne peut pas être vendu.`}
   else w.style.display='none';
 }
 function saveTrade(aid,tid){
@@ -954,7 +981,7 @@ function importData(file){
 }
 function resetAll(){if(!confirm('Effacer toutes les données de cet appareil ? Pense à exporter avant.'))return;localStorage.removeItem(KEY);S=load();go('home')}
 function copy(t){navigator.clipboard?.writeText(t).then(()=>toast('Adresse copiée'),()=>toast('Copie impossible'))}
-let tt;function toast(m){$('.toast')?.remove();clearTimeout(tt);const d=document.createElement('div');d.className='toast';d.textContent=m;d.setAttribute('role','status');document.body.appendChild(d);tt=setTimeout(()=>d.remove(),2600)}
+let tt;function toast(m){$('.toast')?.remove();clearTimeout(tt);const d=document.createElement('div');d.className='toast';d.textContent=m;d.setAttribute('role','status');document.body.appendChild(d);tt=setTimeout(()=>d.remove(),2500)}
 
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 render();
